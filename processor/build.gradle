@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+    id 'groovy'
+    id 'maven-publish'
+    id 'conventions'
+    id 'info.solidsoft.pitest'
+}
+
+dependencies {
+    annotationProcessor platform(project(':dependencies'))
+    annotationProcessor 'com.google.auto.service:auto-service'
+
+    compileOnly platform(project(':dependencies'))
+    compileOnly 'com.google.auto.service:auto-service-annotations'
+    compileOnly 'org.jetbrains:annotations'
+    // compileOnly, never api: the consuming project supplies its own JSpecify at a version it
+    // chooses. The published POM declares no dependencies at all.
+    compileOnly 'org.jspecify:jspecify'
+
+    testImplementation platform(project(':dependencies'))
+    testImplementation 'org.spockframework:spock-core'
+    testImplementation 'org.apache.groovy:groovy'
+    testImplementation 'com.google.testing.compile:compile-testing'
+    testImplementation 'org.assertj:assertj-core'
+    testImplementation 'org.jspecify:jspecify'
+
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'org.mockito:mockito-junit-jupiter'
+}
+
+// The published artifact must carry no dependencies: JSpecify is the consumer's to choose, and the
+// AutoService artifacts are build-time only. A leak here would silently impose a version on every
+// consumer, which is exactly what this project declines to do.
+def verifyPomHasNoDependencies = tasks.register('verifyPomHasNoDependencies') {
+    dependsOn tasks.named('generatePomFileForMavenPublication')
+    def pom = layout.buildDirectory.file('publications/maven/pom-default.xml')
+    inputs.file(pom)
+    outputs.upToDateWhen { true }
+    doLast {
+        def declared = new groovy.xml.XmlSlurper().parse(pom.get().asFile)
+                .dependencies.dependency.collect { "${it.groupId}:${it.artifactId}" }
+        if (!declared.isEmpty()) {
+            throw new GradleException("Published POM must declare no dependencies, but found: ${declared}")
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn verifyPomHasNoDependencies
+}

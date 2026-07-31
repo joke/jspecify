@@ -1,0 +1,17 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Java 11 target (built on Liberica 25), Gradle 9.6.1, AutoService, JSpecify
+  Testing: Spock 2.4, Groovy 5.0, Google Compile Testing, AssertJ, Pitest (100/100/100)
+  No Dagger, no JavaPoet, no Lombok — the production code is deliberately tiny
+  We use conventional commits
+  Domain: an annotation processor that lowers a project-wide "everything is null-marked"
+  policy into the per-package `package-info.java` files JSpecify requires
+
+rules:
+  design:
+  - Keep the processor small. Every dependency must justify itself against a hand-rolled alternative — the generated output is two lines of text and needs no code generator.
+  - Prefer mermaid diagrams for round/ordering flows
+  tasks:
+  - Always add a final task to run `./gradlew check` to verify everything. NEVER continue if there are violations!
+  - Commit the completed spec with /commit-commands:commit

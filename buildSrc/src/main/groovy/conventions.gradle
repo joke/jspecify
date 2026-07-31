@@ -1,0 +1,221 @@
+group = 'io.github.joke.jspecify'
+
+repositories {
+    mavenCentral()
+}
+
+def isCleanTag = providers.exec {
+    workingDir = rootDir
+    commandLine 'git', 'describe', '--tags', '--exact-match'
+    ignoreExitValue = true
+}.result.get().exitValue == 0
+
+def describeAlways = providers.exec {
+    workingDir = rootDir
+    commandLine 'git', 'describe', '--tags', '--always'
+    ignoreExitValue = true
+}.standardOutput.asText.map { it.trim() }.getOrElse('unspecified')
+
+version = isCleanTag ? describeAlways : "${describeAlways}-SNAPSHOT"
+
+pluginManager.withPlugin('java-base') {
+    pluginManager.apply 'com.diffplug.spotless'
+    pluginManager.apply 'net.ltgt.errorprone'
+    pluginManager.apply 'pmd'
+    tasks.withType(JavaCompile).configureEach {
+        options.release = 11
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-Werror', '-parameters', '-Xmaxwarns', '10000', '-Xmaxerrs', '10000']
+        options.fork = true
+        options.forkOptions.jvmArgs += [
+                '--sun-misc-unsafe-memory-access=allow'
+        ]
+    }
+    tasks.withType(Javadoc).configureEach {
+        options.encoding = 'UTF-8'
+    }
+}
+
+pluginManager.withPlugin('com.diffplug.spotless') {
+    spotless {
+        java {
+            forbidWildcardImports()
+            removeUnusedImports()
+            palantirJavaFormat('2.87.0')
+        }
+    }
+}
+
+pluginManager.withPlugin('java') {
+    dependencies {
+        testRuntimeOnly platform(project(':dependencies'))
+        testRuntimeOnly 'org.mockito:mockito-junit-jupiter'
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform {
+            includeTags 'unit'
+        }
+    }
+
+    tasks.register('integrationTest', Test) {
+        useJUnitPlatform {
+            includeTags 'integration'
+        }
+        testClassesDirs = sourceSets.test.output.classesDirs
+        classpath = sourceSets.test.runtimeClasspath
+    }
+
+    tasks.named('check') {
+        dependsOn 'integrationTest'
+    }
+    tasks.withType(Test).configureEach {
+        maxParallelForks = Runtime.runtime.availableProcessors()
+        maxHeapSize = '2g'
+        jvmArgs '-XX:+HeapDumpOnOutOfMemoryError', '-XX:+CrashOnOutOfMemoryError', '-XX:+EnableDynamicAgentLoading'
+    }
+}
+
+pluginManager.withPlugin('groovy') {
+    pluginManager.apply 'codenarc'
+    codenarc {
+        configFile = file("$rootDir/.codenarc.groovy")
+        maxPriority1Violations = 0
+        maxPriority2Violations = 0
+        maxPriority3Violations = 0
+    }
+    dependencies {
+        codenarc 'org.codenarc:CodeNarc:3.7.0-groovy-4.0'
+    }
+    tasks.withType(CodeNarc).configureEach {
+        reports {
+            xml.required = false
+            html.required = true
+            text.required = true
+        }
+    }
+}
+
+pluginManager.withPlugin('info.solidsoft.pitest') {
+    pitest {
+        outputFormats = ['XML', 'HTML']
+        pitestVersion = '1.25.8'
+        junit5PluginVersion = '1.2.3'
+        mutators = ['ALL']
+        enableDefaultIncrementalAnalysis = true
+        includedGroups = ['unit']
+        timestampedReports = false
+        threads = Runtime.runtime.availableProcessors()
+        jvmArgs = ['-XX:+EnableDynamicAgentLoading', '-Dspock.parallel.disabled=true']
+        failWhenNoMutations = true
+        mutationThreshold = 100
+        coverageThreshold = 100
+        testStrengthThreshold = 100
+    }
+    dependencies {
+        pitest 'org.pitest:pitest-history-plugin:0.0.1'
+        compileOnly 'com.groupcdg:pitest-annotations:1.1.4'
+    }
+    tasks.named('check') { dependsOn 'pitest' }
+}
+
+pluginManager.withPlugin('pmd') {
+    pmd {
+        consoleOutput = false
+        toolVersion = '7.26.0'
+        rulesMinimumPriority = 5
+        ruleSets = ["$rootDir/.pmd.xml"]
+    }
+}
+
+pluginManager.withPlugin('net.ltgt.errorprone') {
+    pluginManager.apply 'net.ltgt.nullaway'
+    dependencies {
+        errorprone('com.google.errorprone:error_prone_core:2.49.0')
+    }
+    tasks.withType(JavaCompile).configureEach {
+        options.errorprone {
+            disableWarningsInGeneratedCode = true
+        }
+    }
+}
+
+pluginManager.withPlugin('net.ltgt.nullaway') {
+    dependencies {
+        errorprone('com.uber.nullaway:nullaway:0.13.4')
+    }
+    tasks.withType(JavaCompile).configureEach {
+        options.errorprone {
+            error('RequireExplicitNullMarking')
+            nullaway {
+                error()
+                onlyNullMarked = true
+                treatGeneratedAsUnannotated = true
+                jspecifyMode = true
+                suggestSuppressions = true
+                checkContracts = true
+                acknowledgeRestrictiveAnnotations = true
+            }
+        }
+    }
+}
+
+pluginManager.withPlugin('maven-publish') {
+    pluginManager.apply 'io.github.sgtsilvio.gradle.metadata'
+    pluginManager.apply 'signing'
+}
+
+pluginManager.withPlugin('io.github.sgtsilvio.gradle.metadata') {
+    description = 'A Java annotation processor that generates JSpecify @NullMarked package-info files'
+    metadata {
+        readableName = project.name
+        license { apache2() }
+        developers {
+            register('joke') {
+                fullName = 'Joke de Buhr'
+                email = 'joke@xckk.de'
+            }
+        }
+        github {
+            org = 'joke'
+            repo = rootProject.name
+            pages()
+            issues()
+        }
+    }
+}
+
+pluginManager.withPlugin('maven-publish') {
+    pluginManager.withPlugin('java') {
+        java {
+            withJavadocJar()
+            withSourcesJar()
+        }
+        publishing {
+            publications {
+                maven(MavenPublication) {
+                    from components.java
+                }
+            }
+        }
+    }
+    pluginManager.withPlugin('java-platform') {
+        publishing {
+            publications {
+                maven(MavenPublication) {
+                    from components.javaPlatform
+                }
+            }
+        }
+    }
+}
+
+pluginManager.withPlugin('signing') {
+    signing {
+        required { gradle.taskGraph.allTasks.any { it.name.contains('Aggregation') } }
+        useGpgCmd()
+    }
+    pluginManager.withPlugin('maven-publish') {
+        signing { sign publishing.publications.maven }
+    }
+}
