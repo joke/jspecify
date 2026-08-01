@@ -43,7 +43,7 @@
       copy — the Spock conventions it encodes are percolate-specific
 - [x] 2.7 Set `rootProject.name` so the metadata plugin's `github.repo` resolves to the real
       repository name; publication coordinates are `io.github.joke.jspecify:processor`
-- [ ] 2.8 Write `README.md` covering: what the tool does, the `annotationProcessor` +
+- [x] 2.8 Write `README.md` covering: what the tool does, the `annotationProcessor` +
       `testAnnotationProcessor` wiring, the consumer's own required `org.jspecify:jspecify` compile
       dependency, the "write the file yourself to override" escape hatch, and the recommendation to
       pair it with `RequireExplicitNullMarking`
@@ -113,9 +113,10 @@
 
 ## 6. Spec sync
 
-- [ ] 6.1 Run `openspec` sync for this change and confirm `package-info-generation` and
+- [x] 6.1 Run `openspec` sync for this change and confirm `package-info-generation` and
       `build-foundation` land in the main specs
       — NOTE: the installed CLI is 1.2.0, which has no `sync` command; spec sync is folded into
       `openspec archive`. `.mise.toml` pins 1.3.1, so run `mise install` first if the standalone
-      sync step is wanted
-- [ ] 6.2 Archive the change once `check` is green (left for review — `/opsx:archive`)
+      sync step is wanted. Done agent-driven via `/opsx:sync`: both deltas were pure ADDED and
+      `openspec/specs/` was empty, so each became a new main spec; `openspec validate --specs` passes
+- [x] 6.2 Archive the change once `check` is green (left for review — `/opsx:archive`)
