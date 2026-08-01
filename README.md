@@ -55,9 +55,14 @@ jar. Nothing is written into your source tree, and nothing needs committing.
 For every package it discovers that does not already have a `package-info.java`:
 
 ```java
+@javax.annotation.processing.Generated("io.github.joke.jspecify.processor.NullMarkedProcessor")
 @org.jspecify.annotations.NullMarked
 package com.example.foo;
 ```
+
+The `@Generated` marker has `SOURCE` retention, so it stays out of `package-info.class` and never
+interacts with NullAway's `treatGeneratedAsUnannotated`; `@NullMarked` has `CLASS` retention and
+reaches the class file as usual.
 
 ## Overriding a package
 

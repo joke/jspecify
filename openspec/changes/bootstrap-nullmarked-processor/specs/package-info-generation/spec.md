@@ -101,17 +101,17 @@ in the default package cannot be null-marked.
 - **AND** the compilation still succeeds
 
 ### Requirement: Generated file content
-Each generated file SHALL consist of a provenance comment, the fully-qualified
+Each generated file SHALL consist of the fully-qualified
+`@javax.annotation.processing.Generated` annotation naming the processor, the fully-qualified
 `@org.jspecify.annotations.NullMarked` annotation, and the `package` declaration. It SHALL NOT
-contain an import statement and SHALL NOT be annotated `@javax.annotation.processing.Generated`.
+contain an import statement.
 
-#### Scenario: Content is the fully-qualified two-line form
+#### Scenario: Content is the fully-qualified three-line form
 - **WHEN** `com.example.package-info` is generated
-- **THEN** the source contains `@org.jspecify.annotations.NullMarked` followed by
-  `package com.example;`
+- **THEN** the source contains
+  `@javax.annotation.processing.Generated("io.github.joke.jspecify.processor.NullMarkedProcessor")`
+  followed by `@org.jspecify.annotations.NullMarked` followed by `package com.example;`
 - **AND** it contains no `import` statement
-- **AND** it contains no `@Generated` annotation
-- **AND** it contains a comment identifying the generator
 
 #### Scenario: Marking reaches the class file
 - **WHEN** a compilation with a generated `com.example.package-info` completes

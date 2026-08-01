@@ -82,7 +82,8 @@
       class rather than a source)
 - [x] 4.2a Compile-testing cases for the module rule: a `@NullMarked module-info.java` suppresses
       all generation; an unmarked module and a compilation with no module generate as usual
-- [x] 4.3 Compile-testing cases for content: exact generated text, no import, no `@Generated`
+- [x] 4.3 Compile-testing cases for content: exact generated text, no import, `@Generated` naming the
+      processor
 - [x] 4.4 Test that `process()` returns `false`, and an interop test with a second processor that
       still sees its annotations
 - [x] 4.5 Test the unnamed-package warning and the missing-JSpecify error
