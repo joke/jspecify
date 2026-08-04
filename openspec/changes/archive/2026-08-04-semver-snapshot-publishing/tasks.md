@@ -80,5 +80,5 @@
       are any
 - [x] 8.2 Run `./gradlew publishAggregationToCentralSnapshots --dry-run` and confirm the task graph
       resolves without a GPG key
-- [ ] 8.3 Sync the delta into `openspec/specs/build-foundation/spec.md` with `/opsx:sync`
-- [ ] 8.4 Commit with `/commit-commands:commit`
+- [x] 8.3 Sync the delta into `openspec/specs/build-foundation/spec.md` with `/opsx:sync`
+- [x] 8.4 Commit with `/commit-commands:commit`
