@@ -4,19 +4,8 @@ repositories {
     mavenCentral()
 }
 
-def isCleanTag = providers.exec {
-    workingDir = rootDir
-    commandLine 'git', 'describe', '--tags', '--exact-match'
-    ignoreExitValue = true
-}.result.get().exitValue == 0
-
-def describeAlways = providers.exec {
-    workingDir = rootDir
-    commandLine 'git', 'describe', '--tags', '--always'
-    ignoreExitValue = true
-}.standardOutput.asText.map { it.trim() }.getOrElse('unspecified')
-
-version = isCleanTag ? describeAlways : "${describeAlways}-SNAPSHOT"
+// No version is set here. io.github.joke.conventional-version, applied in settings.gradle, assigns
+// it to every project before any of them is configured.
 
 pluginManager.withPlugin('java-base') {
     pluginManager.apply 'com.diffplug.spotless'
@@ -47,6 +36,10 @@ pluginManager.withPlugin('com.diffplug.spotless') {
 }
 
 pluginManager.withPlugin('java') {
+    // Applied here rather than per module: `java` is the right trigger, so :dependencies (a
+    // java-platform, which never gets the java plugin) is excluded without naming it.
+    pluginManager.apply 'info.solidsoft.pitest'
+
     dependencies {
         testRuntimeOnly platform(project(':dependencies'))
         testRuntimeOnly 'org.mockito:mockito-junit-jupiter'
@@ -179,7 +172,6 @@ pluginManager.withPlugin('io.github.sgtsilvio.gradle.metadata') {
         github {
             org = 'joke'
             repo = rootProject.name
-            pages()
             issues()
         }
     }
@@ -212,7 +204,10 @@ pluginManager.withPlugin('maven-publish') {
 
 pluginManager.withPlugin('signing') {
     signing {
-        required { gradle.taskGraph.allTasks.any { it.name.contains('Aggregation') } }
+        // Matches the release task specifically, not the substring 'Aggregation' - which
+        // publishAggregationToCentralSnapshots also contains, and which would therefore demand a GPG
+        // key from the snapshot job. Central does not require signatures on snapshots.
+        required { gradle.taskGraph.allTasks.any { it.name == 'publishAggregationToCentralPortal' } }
         useGpgCmd()
     }
     pluginManager.withPlugin('maven-publish') {

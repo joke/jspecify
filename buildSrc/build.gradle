@@ -7,9 +7,15 @@ repositories {
     mavenCentral()
 }
 
+// Every project plugin version is declared here and nowhere else. settings.gradle deliberately has
+// no pluginManagement block: a version in both places is a version that can disagree with itself,
+// which is what NullAway did here (3.1.0 in settings, 3.0.0 in buildSrc, buildSrc silently winning).
+// Settings plugins are the exception - they can only be applied from settings.gradle, and carry
+// their versions there.
 dependencies {
     implementation 'com.diffplug.spotless:spotless-plugin-gradle:8.8.0'
     implementation 'net.ltgt.gradle:gradle-errorprone-plugin:5.1.0'
-    implementation 'net.ltgt.gradle:gradle-nullaway-plugin:3.0.0'
+    implementation 'net.ltgt.gradle:gradle-nullaway-plugin:3.1.0'
     implementation 'io.github.sgtsilvio.gradle:gradle-metadata:0.7.0'
+    implementation 'info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.19.0'
 }

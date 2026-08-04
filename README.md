@@ -47,6 +47,22 @@ dependencies {
 
 Wire `testAnnotationProcessor` too, or your test sources stay unmarked.
 
+### Snapshots
+
+Every push to `main` that does not cut a release publishes a snapshot to the Central Portal snapshot
+repository:
+
+```groovy
+repositories {
+    maven { url = 'https://central.sonatype.com/repository/maven-snapshots/' }
+}
+```
+
+The coordinate is the version that will be released next, with `-SNAPSHOT` — so while a `feat:` is
+sitting unreleased on `main` after `1.2.3`, the snapshot is `1.3.0-SNAPSHOT`, not `1.2.4-SNAPSHOT`.
+It is a moving target: every commit in the same range republishes the same coordinate. Snapshots are
+unsigned; releases on Maven Central are signed as usual.
+
 The generated files land in the annotation processor output directory and are compiled into your
 jar. Nothing is written into your source tree, and nothing needs committing.
 
