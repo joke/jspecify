@@ -27,8 +27,10 @@ adapted from `percolate.conventions`, retaining: Spotless with Palantir Java For
 Error Prone with NullAway in jspecify mode, the `test` / `integrationTest` split by JUnit tag,
 Pitest, and the publishing, signing and metadata wiring.
 
-Versioning SHALL NOT be the convention plugin's concern: it SHALL neither invoke `git describe` nor
-set `project.version`. The version is assigned by a settings plugin (see Version derivation).
+The convention plugin SHALL NOT compute a version itself: it SHALL neither invoke `git describe` nor
+assign `project.version`. It SHALL instead apply `io.github.joke.conventional-version`, which does
+(see Version derivation). The application SHALL be in the convention plugin's `plugins` block, so
+that the version is assigned before the script body creates the `MavenPublication` that reads it.
 
 The Lombok configuration SHALL NOT be carried over.
 
@@ -45,6 +47,10 @@ The Lombok configuration SHALL NOT be carried over.
 - **WHEN** the convention plugin is inspected
 - **THEN** it contains no `git describe` invocation
 - **AND** it does not assign `version`
+
+#### Scenario: The convention plugin applies the versioning plugin
+- **WHEN** the convention plugin's `plugins` block is inspected
+- **THEN** it applies `io.github.joke.conventional-version` without a version
 
 #### Scenario: Configuration cache survives a version query
 - **WHEN** `./gradlew help` runs twice with `org.gradle.configuration-cache=true`
@@ -113,11 +119,15 @@ SHALL use `publishAggregationToCentralPortal`.
 - **THEN** `publishAggregationToCentralPortal` does not run
 
 ### Requirement: Version derivation
-The project version SHALL be calculated by the `io.github.joke.conventional-version` settings plugin,
-which predicts the version `release-please` will cut next from the conventional commits since the
-released version recorded in the manifest. The plugin SHALL be applied in `settings.gradle` and SHALL
-be the only thing in the build that assigns a version. No workflow, task or script SHALL pass a flag,
-property or stage to select between a release and a snapshot version.
+The project version SHALL be calculated by the `io.github.joke.conventional-version` plugin, which
+predicts the version `release-please` will cut next from the conventional commits since the released
+version recorded in the manifest. The plugin SHALL be applied at project level by the `conventions`
+plugin and SHALL be the only thing in the build that assigns a version. No workflow, task or script
+SHALL pass a flag, property or stage to select between a release and a snapshot version.
+
+Every project that applies `conventions` SHALL therefore be versioned. The root project applies no
+plugin and SHALL keep Gradle's default `unspecified`; this is permitted because the root project has
+no `build.gradle`, declares no publication, and nothing in the build or in nmcp reads its version.
 
 The version policy SHALL live entirely in `release-please-config.json` and
 `.release-please-manifest.json`, which the build reads and never writes. `release-please` SHALL
@@ -143,9 +153,22 @@ push tags.
 - **WHEN** `gradle.properties`, `settings.gradle` and both workflow files are inspected
 - **THEN** no version, stage, scope or tag-prefix property is declared
 
-#### Scenario: Version resolves before any project is configured
+#### Scenario: Every publishable module is versioned
+- **WHEN** the version of `:processor` and of `:dependencies` is queried
+- **THEN** neither is `unspecified`
+
+#### Scenario: Version resolves before the publication is created
 - **WHEN** the publication is configured
 - **THEN** the version is already resolved and is not `unspecified`
+
+#### Scenario: The root project is unversioned and unpublished
+- **WHEN** the root project's version is queried
+- **THEN** it is `unspecified`
+- **AND** the root project declares no publication
+
+#### Scenario: The aggregated deployment carries the resolved version
+- **WHEN** the bundle produced for Maven Central is inspected
+- **THEN** every coordinate in it carries the derived version and none carries `unspecified`
 
 #### Scenario: A missing release-please configuration fails the build
 - **WHEN** `release-please-config.json` or `.release-please-manifest.json` is absent
@@ -210,17 +233,28 @@ SHALL be declared once via `dependencyResolutionManagement` in `settings.gradle`
 
 ### Requirement: Plugin version declaration
 Every Gradle project plugin version SHALL be declared exactly once, as a dependency in
-`buildSrc/build.gradle`. `settings.gradle` SHALL NOT contain a `pluginManagement` block.
+`buildSrc/build.gradle`. `settings.gradle` SHALL NOT contain a `pluginManagement` block. A plugin
+applied by the convention plugin rather than by a module SHALL be declared as its plugin-marker
+coordinate, `<id>:<id>.gradle.plugin:<version>`.
 
 Settings plugins are exempt and SHALL be declared with their versions in the `settings.gradle`
-`plugins` block: `com.gradleup.nmcp.settings` and `io.github.joke.conventional-version`.
-`settings.gradle` SHALL otherwise contain only the `nmcpSettings` configuration, `rootProject.name`
+`plugins` block. `com.gradleup.nmcp.settings` SHALL be the only such plugin, because it is the only
+one with no project-level equivalent. `settings.gradle` SHALL otherwise contain only the
+`nmcpSettings` configuration, the `dependencyResolutionManagement` repositories, `rootProject.name`
 and the project includes.
 
 #### Scenario: No project plugin versions live in settings
 - **WHEN** `settings.gradle` is inspected
 - **THEN** it declares no `pluginManagement` block
 - **AND** it applies only settings plugins
+
+#### Scenario: Only nmcp is exempt
+- **WHEN** the `plugins` block of `settings.gradle` is inspected
+- **THEN** `com.gradleup.nmcp.settings` is the only plugin it declares
+
+#### Scenario: The versioning plugin version lives in buildSrc
+- **WHEN** `buildSrc/build.gradle` is inspected
+- **THEN** it declares the `io.github.joke.conventional-version` plugin-marker dependency at 2.1.0
 
 #### Scenario: No plugin version is declared twice
 - **WHEN** `settings.gradle` and `buildSrc/build.gradle` are compared

@@ -1,18 +1,7 @@
-// Every other plugin version lives in buildSrc/build.gradle and is applied by the conventions
-// plugin. This one cannot: it is a settings plugin, and buildSrc is not on the settings classpath.
-//
-// nmcp.settings applies nmcp to every project and the aggregation plugin to the root. Reproducing
-// that from a project-level convention plugin would need a root build.gradle (there is none) with
-// hand-wired credentials, for the same result. Versioning used to be exempt for the same reason and
-// no longer is - see the conventions plugin, which applies it.
 plugins {
     id 'com.gradleup.nmcp.settings' version '1.6.1'
 }
 
-// The root project has no build.gradle and therefore no repositories, but nmcp resolves
-// com.gradleup.nmcp:nmcp-tasks into a root-project configuration to build the aggregation task.
-// Declared here rather than in a new root build.gradle; the conventions plugin's own per-project
-// repositories still win, since PREFER_PROJECT is the default mode.
 dependencyResolutionManagement {
     repositories {
         mavenCentral()

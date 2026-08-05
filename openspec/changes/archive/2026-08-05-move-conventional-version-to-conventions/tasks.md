@@ -25,4 +25,4 @@
 
 ## 5. Land
 
-- [ ] 5.1 Commit with `/commit-commands:commit`
+- [x] 5.1 Commit with `/commit-commands:commit`
