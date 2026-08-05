@@ -17,9 +17,9 @@
 
 ## 4. Verify in CI
 
-- [ ] 4.1 Push and watch the `release` workflow; confirm the `snapshot` job reaches `publishAggregationToCentralSnapshots` and the run is green
-- [ ] 4.2 Confirm the Central snapshot repository accepted the upload including the `.asc` files. If it rejected signatures, stop and reopen the design decision rather than working around it
+- [x] 4.1 Push and watch the `release` workflow; confirm the `snapshot` job reaches `publishAggregationToCentralSnapshots` and the run is green
+- [x] 4.2 Confirm the Central snapshot repository accepted the upload including the `.asc` files. If it rejected signatures, stop and reopen the design decision rather than working around it
 
 ## 5. Land
 
-- [ ] 5.1 Commit with `/commit-commands:commit`
+- [x] 5.1 Commit with `/commit-commands:commit`
