@@ -10,12 +10,20 @@ repositories {
 // Every project plugin version is declared here and nowhere else. settings.gradle deliberately has
 // no pluginManagement block: a version in both places is a version that can disagree with itself,
 // which is what NullAway did here (3.1.0 in settings, 3.0.0 in buildSrc, buildSrc silently winning).
-// Settings plugins are the exception - they can only be applied from settings.gradle, and carry
-// their versions there.
+//
+// com.gradleup.nmcp.settings is the one exemption, and it is exempt because it has no project-level
+// equivalent: it applies nmcp to every project and the aggregation plugin to the root. It carries
+// its version in settings.gradle, where it is the only plugin left.
 dependencies {
     implementation 'com.diffplug.spotless:spotless-plugin-gradle:8.8.0'
     implementation 'net.ltgt.gradle:gradle-errorprone-plugin:5.1.0'
     implementation 'net.ltgt.gradle:gradle-nullaway-plugin:3.1.0'
     implementation 'io.github.sgtsilvio.gradle:gradle-metadata:0.7.0'
     implementation 'info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.19.0'
+
+    // The plugin-marker coordinate rather than the implementation jar, because conventions.gradle
+    // applies this one from its plugins block, which resolves an id the way a build script does.
+    // The plugins above are applied by pluginManager.apply(id), which reads the descriptor out of
+    // the implementation jar already on this classpath and needs no marker.
+    implementation 'io.github.joke.conventional-version:io.github.joke.conventional-version.gradle.plugin:2.1.0'
 }

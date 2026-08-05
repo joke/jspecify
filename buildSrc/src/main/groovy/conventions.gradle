@@ -1,11 +1,24 @@
+// Assigns the version release-please will cut next - bare on a release commit, <next>-SNAPSHOT in
+// between - reading release-please-config.json, .release-please-manifest.json and the conventional
+// commits since the released version. Nothing else in the build sets a version.
+//
+// It belongs in this block, not in a pluginManager.apply below, because a plugins block runs before
+// the script body - and the script body is what creates the MavenPublication that captures
+// project.version. So the version is set by the same file that later reads it, in that order, and
+// cannot arrive late.
+//
+// Only projects applying `conventions` are versioned. That is both publishable modules; the root
+// project has no build.gradle and stays `unspecified`, which nothing reads - it declares no
+// publication, and nmcp names the Central deployment from the coordinates inside the bundle.
+plugins {
+    id 'io.github.joke.conventional-version'
+}
+
 group = 'io.github.joke.jspecify'
 
 repositories {
     mavenCentral()
 }
-
-// No version is set here. io.github.joke.conventional-version, applied in settings.gradle, assigns
-// it to every project before any of them is configured.
 
 pluginManager.withPlugin('java-base') {
     pluginManager.apply 'com.diffplug.spotless'

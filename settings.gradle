@@ -1,17 +1,12 @@
 // Every other plugin version lives in buildSrc/build.gradle and is applied by the conventions
-// plugin. These two cannot: they are settings plugins.
+// plugin. This one cannot: it is a settings plugin, and buildSrc is not on the settings classpath.
 //
 // nmcp.settings applies nmcp to every project and the aggregation plugin to the root. Reproducing
 // that from a project-level convention plugin would need a root build.gradle (there is none) with
-// hand-wired credentials, for the same result.
-//
-// conventional-version reads release-please-config.json, .release-please-manifest.json and the
-// conventional commits since the released version, and assigns the version release-please will cut
-// next - bare on a release commit, <next>-SNAPSHOT in between - to every project. It has to run
-// before any project is configured, because maven-publish and nmcp read the version then.
+// hand-wired credentials, for the same result. Versioning used to be exempt for the same reason and
+// no longer is - see the conventions plugin, which applies it.
 plugins {
     id 'com.gradleup.nmcp.settings' version '1.6.1'
-    id 'io.github.joke.conventional-version' version '2.0.0'
 }
 
 // The root project has no build.gradle and therefore no repositories, but nmcp resolves
