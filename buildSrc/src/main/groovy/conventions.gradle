@@ -203,10 +203,6 @@ pluginManager.withPlugin('maven-publish') {
 
 pluginManager.withPlugin('signing') {
     signing {
-        // Matches the release task specifically, not the substring 'Aggregation' - which
-        // publishAggregationToCentralSnapshots also contains, and which would therefore demand a GPG
-        // key from the snapshot job. Central does not require signatures on snapshots.
-        required { gradle.taskGraph.allTasks.any { it.name == 'publishAggregationToCentralPortal' } }
         useGpgCmd()
     }
     pluginManager.withPlugin('maven-publish') {

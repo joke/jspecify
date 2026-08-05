@@ -52,8 +52,12 @@ jobs:
 
   # The complement of `publish`: every push to main that did not cut a release publishes the next
   # planned version as a snapshot, so main is always consumable. A release commit publishes only the
-  # release. No GPG step - Central does not require signatures on snapshots, and the signing
-  # predicate in conventions.gradle matches the release task alone.
+  # release.
+  #
+  # Signs exactly as `publish` does, with the same action and the same secrets. Central does not
+  # require signatures on snapshots, but publishing them unsigned would leave the key, the
+  # passphrase, the fingerprint and signMavenPublication untested until the one run where a failure
+  # cannot be withdrawn. Every merge to main rehearses the release path instead.
   snapshot:
     needs: release-please
     if: ${{ !needs.release-please.outputs.release_created }}
@@ -63,6 +67,11 @@ jobs:
       with:
         fetch-depth: 0
     - uses: jdx/mise-action@v4
+    - uses: crazy-max/ghaction-import-gpg@v7
+      with:
+        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+        passphrase: ${{ secrets.GPG_PASSPHRASE }}
+        fingerprint: ${{ secrets.GPG_FINGERPRINT }}
     - uses: gradle/actions/setup-gradle@v6
     - run: ./gradlew publishAggregationToCentralSnapshots
       env:
