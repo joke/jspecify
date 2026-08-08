@@ -73,6 +73,10 @@ consuming project supplies its own `org.jspecify:jspecify` at a version it choos
 project SHALL NOT impose one transitively. It SHALL NOT depend on Dagger, JavaPoet, auto-common,
 Guava, or JGraphT, and SHALL NOT be shaded.
 
+The empty POM follows from the dependency configurations themselves — `annotationProcessor`,
+`compileOnly`, `testImplementation` and `testRuntimeOnly` are not published scopes — and is not
+enforced by a build-time verification task.
+
 #### Scenario: The published artifact has no dependencies
 - **WHEN** the published POM is inspected
 - **THEN** it declares no `compile`- or `runtime`-scope dependency
