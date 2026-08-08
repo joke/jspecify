@@ -5,6 +5,13 @@ plugins {
 group = 'io.github.joke.jspecify'
 
 repositories {
+    maven {
+        name = 'Central Portal Snapshots'
+        url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        content {
+            includeGroupAndSubgroups('io.github.joke')
+        }
+    }
     mavenCentral()
 }
 
@@ -40,6 +47,12 @@ pluginManager.withPlugin('java') {
     pluginManager.apply 'info.solidsoft.pitest'
 
     dependencies {
+        annotationProcessor platform(project(':dependencies'))
+        annotationProcessor 'org.projectlombok:lombok'
+
+        compileOnly platform(project(':dependencies'))
+        compileOnly 'org.projectlombok:lombok'
+
         testRuntimeOnly platform(project(':dependencies'))
         testRuntimeOnly 'org.mockito:mockito-junit-jupiter'
     }
@@ -113,17 +126,20 @@ pluginManager.withPlugin('info.solidsoft.pitest') {
 
 pluginManager.withPlugin('pmd') {
     pmd {
-        consoleOutput = false
-        toolVersion = '7.26.0'
+        consoleOutput = true
         rulesMinimumPriority = 5
-        ruleSets = ["$rootDir/.pmd.xml"]
+        ruleSets = ['rulesets/java/joke-strict.xml']
+    }
+    dependencies {
+        pmd 'net.sourceforge.pmd:pmd-dist:7.26.0'
+        pmd 'io.github.joke.pmd:rules:0.1.0-SNAPSHOT'
     }
 }
 
 pluginManager.withPlugin('net.ltgt.errorprone') {
     pluginManager.apply 'net.ltgt.nullaway'
     dependencies {
-        errorprone('com.google.errorprone:error_prone_core:2.49.0')
+        errorprone 'com.google.errorprone:error_prone_core:2.49.0'
     }
     tasks.withType(JavaCompile).configureEach {
         options.errorprone {
@@ -134,7 +150,7 @@ pluginManager.withPlugin('net.ltgt.errorprone') {
 
 pluginManager.withPlugin('net.ltgt.nullaway') {
     dependencies {
-        errorprone('com.uber.nullaway:nullaway:0.13.4')
+        errorprone 'com.uber.nullaway:nullaway:0.13.4'
     }
     tasks.withType(JavaCompile).configureEach {
         options.errorprone {

@@ -4,6 +4,9 @@ import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import static javax.lang.model.SourceVersion.latestSupported;
+import static javax.tools.Diagnostic.Kind.ERROR;
+import static javax.tools.Diagnostic.Kind.WARNING;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -25,8 +28,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import org.jetbrains.annotations.VisibleForTesting;
 
 /**
@@ -68,7 +69,7 @@ public class NullMarkedProcessor extends AbstractProcessor {
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
-        return SourceVersion.latestSupported();
+        return latestSupported();
     }
 
     @Override
@@ -85,17 +86,17 @@ public class NullMarkedProcessor extends AbstractProcessor {
      * {@code -Werror}.
      */
     @VisibleForTesting
-    protected void generate(final RoundEnvironment roundEnv) {
+    void generate(final RoundEnvironment roundEnv) {
         if (jspecifyMissing()) {
             reportMissingJspecify();
             return;
         }
-        final Set<String> existing = existingPackageInfos(roundEnv);
+        final var existing = existingPackageInfos(roundEnv);
         candidates(roundEnv).forEach((pkg, originating) -> writeUnlessCovered(pkg, originating, existing));
     }
 
     @VisibleForTesting
-    protected void writeUnlessCovered(final String pkg, final List<Element> originating, final Set<String> existing) {
+    void writeUnlessCovered(final String pkg, final List<Element> originating, final Set<String> existing) {
         if (!covered(pkg, existing)) {
             write(pkg, originating);
         }
@@ -103,8 +104,8 @@ public class NullMarkedProcessor extends AbstractProcessor {
 
     /** Root types grouped by the package that will need a {@code package-info}. */
     @VisibleForTesting
-    protected Map<String, List<Element>> candidates(final RoundEnvironment roundEnv) {
-        final List<Element> roots = typeRoots(roundEnv);
+    Map<String, List<Element>> candidates(final RoundEnvironment roundEnv) {
+        final var roots = typeRoots(roundEnv);
         roots.stream().filter(this::inUnnamedPackage).forEach(this::warnUnnamedPackage);
         return roots.stream()
                 .filter(not(this::inUnnamedPackage))
@@ -114,29 +115,29 @@ public class NullMarkedProcessor extends AbstractProcessor {
 
     /** Root elements that are types; a {@link PackageElement} root is an existing package-info. */
     @VisibleForTesting
-    protected List<Element> typeRoots(final RoundEnvironment roundEnv) {
+    List<Element> typeRoots(final RoundEnvironment roundEnv) {
         return roundEnv.getRootElements().stream()
                 .filter(root -> root.getKind() != ElementKind.PACKAGE)
                 .collect(toList());
     }
 
     @VisibleForTesting
-    protected PackageElement packageOf(final Element root) {
+    PackageElement packageOf(final Element root) {
         return processingEnv.getElementUtils().getPackageOf(root);
     }
 
     @VisibleForTesting
-    protected String packageName(final Element root) {
+    String packageName(final Element root) {
         return packageOf(root).getQualifiedName().toString();
     }
 
     @VisibleForTesting
-    protected boolean inUnnamedPackage(final Element root) {
+    boolean inUnnamedPackage(final Element root) {
         return packageOf(root).isUnnamed();
     }
 
     @VisibleForTesting
-    protected boolean inNullMarkedModule(final Element root) {
+    boolean inNullMarkedModule(final Element root) {
         return moduleIsNullMarked(packageOf(root));
     }
 
@@ -146,7 +147,7 @@ public class NullMarkedProcessor extends AbstractProcessor {
      * earlier round excludes itself.
      */
     @VisibleForTesting
-    protected Set<String> existingPackageInfos(final RoundEnvironment roundEnv) {
+    Set<String> existingPackageInfos(final RoundEnvironment roundEnv) {
         return roundEnv.getRootElements().stream()
                 .filter(root -> root.getKind() == ElementKind.PACKAGE)
                 .map(root -> ((PackageElement) root).getQualifiedName().toString())
@@ -159,7 +160,7 @@ public class NullMarkedProcessor extends AbstractProcessor {
      * compilation from duplicating the one its main source set already produced.
      */
     @VisibleForTesting
-    protected boolean covered(final String pkg, final Set<String> existing) {
+    boolean covered(final String pkg, final Set<String> existing) {
         return existing.contains(pkg) || emitted.contains(pkg) || annotatedOnClasspath(pkg);
     }
 
@@ -171,20 +172,20 @@ public class NullMarkedProcessor extends AbstractProcessor {
      * arriving with annotations already attached is one that has a {@code package-info} behind it.
      */
     @VisibleForTesting
-    protected boolean annotatedOnClasspath(final String pkg) {
-        final PackageElement existing = processingEnv.getElementUtils().getPackageElement(pkg);
+    boolean annotatedOnClasspath(final String pkg) {
+        final var existing = processingEnv.getElementUtils().getPackageElement(pkg);
         return existing != null && !existing.getAnnotationMirrors().isEmpty();
     }
 
     /** A module-level {@code @NullMarked} already covers every package in it. */
     @VisibleForTesting
-    protected boolean moduleIsNullMarked(final PackageElement pkg) {
-        final ModuleElement module = processingEnv.getElementUtils().getModuleOf(pkg);
+    boolean moduleIsNullMarked(final PackageElement pkg) {
+        final var module = processingEnv.getElementUtils().getModuleOf(pkg);
         return module != null && isNullMarked(module);
     }
 
     @VisibleForTesting
-    protected boolean isNullMarked(final ModuleElement module) {
+    boolean isNullMarked(final ModuleElement module) {
         return module.getAnnotationMirrors().stream().anyMatch(this::isNullMarkedAnnotation);
     }
 
@@ -194,19 +195,19 @@ public class NullMarkedProcessor extends AbstractProcessor {
      * classpath.
      */
     @VisibleForTesting
-    protected boolean isNullMarkedAnnotation(final AnnotationMirror mirror) {
-        final Element annotation = mirror.getAnnotationType().asElement();
+    boolean isNullMarkedAnnotation(final AnnotationMirror mirror) {
+        final var annotation = mirror.getAnnotationType().asElement();
         return annotation instanceof TypeElement
                 && NULL_MARKED.contentEquals(((TypeElement) annotation).getQualifiedName());
     }
 
     @VisibleForTesting
-    protected void write(final String pkg, final List<Element> originating) {
+    void write(final String pkg, final List<Element> originating) {
         try {
-            final JavaFileObject file = processingEnv
+            final var file = processingEnv
                     .getFiler()
                     .createSourceFile(pkg + "." + PACKAGE_INFO, originating.toArray(Element[]::new));
-            try (Writer writer = file.openWriter()) {
+            try (var writer = file.openWriter()) {
                 writer.write(content(pkg));
             }
             emitted.add(pkg);
@@ -226,25 +227,25 @@ public class NullMarkedProcessor extends AbstractProcessor {
      * encoding of the {@link Writer} is the consuming compilation's, not ours.
      */
     @VisibleForTesting
-    protected String content(final String pkg) {
+    String content(final String pkg) {
         return "@" + GENERATED + "(\"" + GENERATOR + "\")\n" + "@" + NULL_MARKED + "\n" + "package " + pkg + ";\n";
     }
 
     @VisibleForTesting
-    protected boolean jspecifyMissing() {
+    boolean jspecifyMissing() {
         return processingEnv.getElementUtils().getTypeElement(NULL_MARKED) == null;
     }
 
     @VisibleForTesting
-    protected void reportMissingJspecify() {
+    void reportMissingJspecify() {
         if (!missingJspecifyReported) {
             missingJspecifyReported = true;
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, MISSING_JSPECIFY);
+            processingEnv.getMessager().printMessage(ERROR, MISSING_JSPECIFY);
         }
     }
 
     @VisibleForTesting
-    protected void warnUnnamedPackage(final Element root) {
-        processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, UNNAMED_PACKAGE, root);
+    void warnUnnamedPackage(final Element root) {
+        processingEnv.getMessager().printMessage(WARNING, UNNAMED_PACKAGE, root);
     }
 }

@@ -2,8 +2,12 @@ schema: spec-driven
 
 context: |
   Tech stack: Java 11 target (built on Liberica 25), Gradle 9.6.1, AutoService, JSpecify
-  Testing: Spock 2.4, Groovy 5.0, Google Compile Testing, AssertJ, Pitest (100/100/100)
-  No Dagger, no JavaPoet, no Lombok — the production code is deliberately tiny
+  Testing: Spock 2.4 exclusively, Groovy 5.0, Mockito as Spock's mock maker, Google Compile Testing
+  (assertions via its Truth-based CompilationSubject), Pitest (100/100/100)
+  Static analysis: PMD via the shared io.github.joke.pmd:rules artifact — code conforms, never
+  suppresses. Testing seams are package-private + @VisibleForTesting, never protected.
+  No Dagger, no JavaPoet — the production code is deliberately tiny. Lombok is available from the
+  convention plugin but the processor currently generates nothing with it.
   We use conventional commits
   Domain: an annotation processor that lowers a project-wide "everything is null-marked"
   policy into the per-package `package-info.java` files JSpecify requires
