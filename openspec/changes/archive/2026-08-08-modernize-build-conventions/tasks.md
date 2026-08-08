@@ -78,4 +78,4 @@
 
 - [x] 8.1 Run `./gradlew check` and confirm it passes with no violations. NEVER continue if there
       are violations.
-- [ ] 8.2 Commit with `/commit-commands:commit`
+- [x] 8.2 Commit with `/commit-commands:commit`
