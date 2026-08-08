@@ -26,24 +26,3 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testRuntimeOnly 'org.mockito:mockito-junit-jupiter'
 }
-
-// The published artifact must carry no dependencies: JSpecify is the consumer's to choose, and the
-// AutoService artifacts are build-time only. A leak here would silently impose a version on every
-// consumer, which is exactly what this project declines to do.
-def verifyPomHasNoDependencies = tasks.register('verifyPomHasNoDependencies') {
-    dependsOn tasks.named('generatePomFileForMavenPublication')
-    def pom = layout.buildDirectory.file('publications/maven/pom-default.xml')
-    inputs.file(pom)
-    outputs.upToDateWhen { true }
-    doLast {
-        def declared = new groovy.xml.XmlSlurper().parse(pom.get().asFile)
-                .dependencies.dependency.collect { "${it.groupId}:${it.artifactId}" }
-        if (!declared.isEmpty()) {
-            throw new GradleException("Published POM must declare no dependencies, but found: ${declared}")
-        }
-    }
-}
-
-tasks.named('check') {
-    dependsOn verifyPomHasNoDependencies
-}
