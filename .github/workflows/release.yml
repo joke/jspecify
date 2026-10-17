@@ -3,77 +3,19 @@ name: release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. v1.0.0. Set only to re-publish a failed release.
+        required: true
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    steps:
-    # Manifest mode: the action reads release-please-config.json and .release-please-manifest.json
-    # itself. Those same two files are what the build reads to compute the version, so the release
-    # policy is stated once and neither side can drift from the other.
-    - uses: GoogleCloudPlatform/release-please-action@v5.0
-      id: release
-
-  # Publishes to Maven Central only when release-please actually cut a release (release_created) - an
-  # ordinary push to main that merely updates the pending release PR never reaches this job, and no
-  # -SNAPSHOT version is ever published from here.
-  publish:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v7
-      with:
-        ref: ${{ needs.release-please.outputs.tag_name }}
-        # The version is computed from the commits since the released version; the plugin fails the
-        # build on a shallow clone rather than guessing.
-        fetch-depth: 0
-    - uses: jdx/mise-action@v4
-    - uses: crazy-max/ghaction-import-gpg@v7
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        fingerprint: ${{ secrets.GPG_FINGERPRINT }}
-    - uses: gradle/actions/setup-gradle@v6
-    - run: ./gradlew publishAggregationToCentralPortal
-      env:
-        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.mavenCentralUsername }}
-        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.mavenCentralPassword }}
-
-  # The complement of `publish`: every push to main that did not cut a release publishes the next
-  # planned version as a snapshot, so main is always consumable. A release commit publishes only the
-  # release.
-  #
-  # Signs exactly as `publish` does, with the same action and the same secrets. Central does not
-  # require signatures on snapshots, but publishing them unsigned would leave the key, the
-  # passphrase, the fingerprint and signMavenPublication untested until the one run where a failure
-  # cannot be withdrawn. Every merge to main rehearses the release path instead.
-  snapshot:
-    needs: release-please
-    if: ${{ !needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
-    - uses: jdx/mise-action@v4
-    - uses: crazy-max/ghaction-import-gpg@v7
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        fingerprint: ${{ secrets.GPG_FINGERPRINT }}
-    - uses: gradle/actions/setup-gradle@v6
-    - run: ./gradlew publishAggregationToCentralSnapshots
-      env:
-        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.mavenCentralUsername }}
-        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.mavenCentralPassword }}
+  release:
+    uses: joke/workflows/.github/workflows/gradle-release.yml@main
+    with:
+      tag: ${{ inputs.tag || '' }}
+    secrets: inherit
