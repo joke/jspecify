@@ -20,7 +20,7 @@ pluginManager.withPlugin('java-base') {
     pluginManager.apply 'net.ltgt.errorprone'
     pluginManager.apply 'pmd'
     tasks.withType(JavaCompile).configureEach {
-        options.release = 11
+        options.release = 8
         options.encoding = 'UTF-8'
         options.compilerArgs += ['-Werror', '-parameters', '-Xmaxwarns', '10000', '-Xmaxerrs', '10000']
         options.fork = true

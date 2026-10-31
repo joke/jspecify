@@ -1,9 +1,9 @@
 package io.github.joke.jspecify.processor;
 
-import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import static javax.lang.model.SourceVersion.RELEASE_8;
 import static javax.lang.model.SourceVersion.latestSupported;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.WARNING;
@@ -25,9 +25,9 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.tools.JavaFileObject;
 import org.jetbrains.annotations.VisibleForTesting;
 
 /**
@@ -39,6 +39,8 @@ import org.jetbrains.annotations.VisibleForTesting;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("*")
+// Local variables carry explicit types because the processor compiles to Java 8, which has no var.
+@SuppressWarnings("PMD.UseVarForLocalVariables")
 public class NullMarkedProcessor extends AbstractProcessor {
 
     @VisibleForTesting
@@ -46,6 +48,10 @@ public class NullMarkedProcessor extends AbstractProcessor {
 
     @VisibleForTesting
     static final String GENERATED = "javax.annotation.processing.Generated";
+
+    /** The {@code @Generated} annotation available from source 8, where the JDK 9 one does not exist. */
+    @VisibleForTesting
+    static final String GENERATED_JDK8 = "javax.annotation.Generated";
 
     /** Value of the {@code @Generated} marker: the processor that wrote the file. */
     @VisibleForTesting
@@ -91,7 +97,7 @@ public class NullMarkedProcessor extends AbstractProcessor {
             reportMissingJspecify();
             return;
         }
-        final var existing = existingPackageInfos(roundEnv);
+        final Set<String> existing = existingPackageInfos(roundEnv);
         candidates(roundEnv).forEach((pkg, originating) -> writeUnlessCovered(pkg, originating, existing));
     }
 
@@ -105,11 +111,11 @@ public class NullMarkedProcessor extends AbstractProcessor {
     /** Root types grouped by the package that will need a {@code package-info}. */
     @VisibleForTesting
     Map<String, List<Element>> candidates(final RoundEnvironment roundEnv) {
-        final var roots = typeRoots(roundEnv);
+        final List<Element> roots = typeRoots(roundEnv);
         roots.stream().filter(this::inUnnamedPackage).forEach(this::warnUnnamedPackage);
         return roots.stream()
-                .filter(not(this::inUnnamedPackage))
-                .filter(not(this::inNullMarkedModule))
+                .filter(root -> !inUnnamedPackage(root))
+                .filter(root -> !inNullMarkedModule(root))
                 .collect(groupingBy(this::packageName, LinkedHashMap::new, toList()));
     }
 
@@ -173,19 +179,23 @@ public class NullMarkedProcessor extends AbstractProcessor {
      */
     @VisibleForTesting
     boolean annotatedOnClasspath(final String pkg) {
-        final var existing = processingEnv.getElementUtils().getPackageElement(pkg);
+        final PackageElement existing = processingEnv.getElementUtils().getPackageElement(pkg);
         return existing != null && !existing.getAnnotationMirrors().isEmpty();
     }
 
-    /** A module-level {@code @NullMarked} already covers every package in it. */
+    /**
+     * A module-level {@code @NullMarked} already covers every package in it. On JDK 9 and later a
+     * package's enclosing element is its module; on JDK 8 there is none. The lookup is typed as
+     * {@link Element} rather than {@code ModuleElement}, which {@code --release 8} cannot see.
+     */
     @VisibleForTesting
     boolean moduleIsNullMarked(final PackageElement pkg) {
-        final var module = processingEnv.getElementUtils().getModuleOf(pkg);
+        final Element module = pkg.getEnclosingElement();
         return module != null && isNullMarked(module);
     }
 
     @VisibleForTesting
-    boolean isNullMarked(final ModuleElement module) {
+    boolean isNullMarked(final Element module) {
         return module.getAnnotationMirrors().stream().anyMatch(this::isNullMarkedAnnotation);
     }
 
@@ -196,7 +206,7 @@ public class NullMarkedProcessor extends AbstractProcessor {
      */
     @VisibleForTesting
     boolean isNullMarkedAnnotation(final AnnotationMirror mirror) {
-        final var annotation = mirror.getAnnotationType().asElement();
+        final Element annotation = mirror.getAnnotationType().asElement();
         return annotation instanceof TypeElement
                 && NULL_MARKED.contentEquals(((TypeElement) annotation).getQualifiedName());
     }
@@ -204,10 +214,11 @@ public class NullMarkedProcessor extends AbstractProcessor {
     @VisibleForTesting
     void write(final String pkg, final List<Element> originating) {
         try {
-            final var file = processingEnv
+            final JavaFileObject file = processingEnv
                     .getFiler()
-                    .createSourceFile(pkg + "." + PACKAGE_INFO, originating.toArray(Element[]::new));
-            try (var writer = file.openWriter()) {
+                    .createSourceFile(
+                            pkg + "." + PACKAGE_INFO, originating.stream().toArray(Element[]::new));
+            try (Writer writer = file.openWriter()) {
                 writer.write(content(pkg));
             }
             emitted.add(pkg);
@@ -219,8 +230,8 @@ public class NullMarkedProcessor extends AbstractProcessor {
     }
 
     /**
-     * Provenance is carried by {@code @javax.annotation.processing.Generated} rather than a comment,
-     * so tooling can read it. The annotation has {@code SOURCE} retention, so it does not reach the
+     * Provenance is carried by an {@code @Generated} annotation rather than a comment, so tooling can
+     * read it. The annotation has {@code SOURCE} retention, so it does not reach the
      * {@code package-info.class} and cannot interact with NullAway's {@code
      * treatGeneratedAsUnannotated}, which reads the annotation off the outermost class of the code
      * being analysed. Fully qualified and ASCII only, because there are no imports here and the
@@ -228,7 +239,17 @@ public class NullMarkedProcessor extends AbstractProcessor {
      */
     @VisibleForTesting
     String content(final String pkg) {
-        return "@" + GENERATED + "(\"" + GENERATOR + "\")\n" + "@" + NULL_MARKED + "\n" + "package " + pkg + ";\n";
+        return "@" + generatedAnnotation() + "(\"" + GENERATOR + "\")\n" + "@" + NULL_MARKED + "\n" + "package " + pkg
+                + ";\n";
+    }
+
+    /**
+     * The {@code @Generated} annotation the consuming compilation can resolve: the JDK 9 one from source
+     * 9 onwards, and the JDK 8 one for source 8 and below.
+     */
+    @VisibleForTesting
+    String generatedAnnotation() {
+        return processingEnv.getSourceVersion().compareTo(RELEASE_8) > 0 ? GENERATED : GENERATED_JDK8;
     }
 
     @VisibleForTesting

@@ -13,7 +13,6 @@ import javax.lang.model.SourceVersion
 import javax.lang.model.element.AnnotationMirror
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
-import javax.lang.model.element.ModuleElement
 import javax.lang.model.element.PackageElement
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.DeclaredType
@@ -416,7 +415,7 @@ class NullMarkedProcessorSpec extends Specification {
 
     def 'moduleIsNullMarked consults the enclosing module'() {
         PackageElement pkg = Mock()
-        ModuleElement module = Mock()
+        Element module = Mock()
         NullMarkedProcessor subject = Spy()
         subject.init(processingEnv)
 
@@ -424,8 +423,7 @@ class NullMarkedProcessorSpec extends Specification {
         def marked = subject.moduleIsNullMarked(pkg)
 
         then:
-        1 * processingEnv.elementUtils >> elements
-        1 * elements.getModuleOf(pkg) >> module
+        1 * pkg.enclosingElement >> module
         1 * subject.isNullMarked(module) >> true
         1 * subject._
         0 * _
@@ -436,7 +434,7 @@ class NullMarkedProcessorSpec extends Specification {
 
     def 'moduleIsNullMarked reports a module without the annotation as unmarked'() {
         PackageElement pkg = Mock()
-        ModuleElement module = Mock()
+        Element module = Mock()
         NullMarkedProcessor subject = Spy()
         subject.init(processingEnv)
 
@@ -444,8 +442,7 @@ class NullMarkedProcessorSpec extends Specification {
         def marked = subject.moduleIsNullMarked(pkg)
 
         then:
-        1 * processingEnv.elementUtils >> elements
-        1 * elements.getModuleOf(pkg) >> module
+        1 * pkg.enclosingElement >> module
         1 * subject.isNullMarked(module) >> false
         1 * subject._
         0 * _
@@ -454,15 +451,14 @@ class NullMarkedProcessorSpec extends Specification {
         !marked
     }
 
-    def 'moduleIsNullMarked tolerates an absent module'() {
+    def 'moduleIsNullMarked tolerates a package with no enclosing module'() {
         PackageElement pkg = Mock()
 
         when:
         def marked = processor.moduleIsNullMarked(pkg)
 
         then:
-        1 * processingEnv.elementUtils >> elements
-        1 * elements.getModuleOf(pkg) >> null
+        1 * pkg.enclosingElement >> null
         0 * _
 
         expect:
@@ -470,7 +466,7 @@ class NullMarkedProcessorSpec extends Specification {
     }
 
     def 'isNullMarked scans the module annotations'() {
-        ModuleElement module = Mock()
+        Element module = Mock()
         AnnotationMirror mirror = Mock()
         NullMarkedProcessor subject = Spy()
         subject.init(processingEnv)
@@ -595,10 +591,24 @@ class NullMarkedProcessorSpec extends Specification {
         error.message == 'Failed to generate com.example.package-info'
     }
 
-    def 'content is the fully qualified form carrying @Generated and @NullMarked'() {
+    def 'content carries the JDK 9 Generated annotation from source 9 onwards'() {
+        given:
+        processingEnv.sourceVersion >> SourceVersion.RELEASE_11
+
         expect:
         processor.content('com.example') ==
                 '@javax.annotation.processing.Generated("io.github.joke.jspecify.processor.NullMarkedProcessor")\n' +
+                '@org.jspecify.annotations.NullMarked\n' +
+                'package com.example;\n'
+    }
+
+    def 'content carries the JDK 8 Generated annotation at source 8'() {
+        given:
+        processingEnv.sourceVersion >> SourceVersion.RELEASE_8
+
+        expect:
+        processor.content('com.example') ==
+                '@javax.annotation.Generated("io.github.joke.jspecify.processor.NullMarkedProcessor")\n' +
                 '@org.jspecify.annotations.NullMarked\n' +
                 'package com.example;\n'
     }
