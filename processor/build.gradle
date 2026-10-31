@@ -23,3 +23,12 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testRuntimeOnly 'org.mockito:mockito-junit-jupiter'
 }
+
+// Two warnings under --release 8 cannot be turned off individually, and -Werror would fail on them:
+// JDKs 21+ report that release 8 is obsolete, and jspecify's @NullMarked class file names
+// ElementType.MODULE, which release 8 does not have. Both are accepted, so the processor drops -Werror
+// and suppresses warnings. Errors still fail the build.
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs -= ['-Werror']
+    options.compilerArgs += ['-nowarn']
+}

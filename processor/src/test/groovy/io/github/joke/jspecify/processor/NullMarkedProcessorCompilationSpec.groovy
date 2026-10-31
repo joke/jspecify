@@ -22,6 +22,11 @@ class NullMarkedProcessorCompilationSpec extends Specification {
             '@org.jspecify.annotations.NullMarked\n' +
             'package com.example;\n'
 
+    static final String EXPECTED_CONTENT_JDK8 =
+            '@javax.annotation.Generated("io.github.joke.jspecify.processor.NullMarkedProcessor")\n' +
+            '@org.jspecify.annotations.NullMarked\n' +
+            'package com.example;\n'
+
     static JavaFileObject type(String pkg, String name) {
         JavaFileObjects.forSourceString("${pkg}.${name}", "package ${pkg};\npublic class ${name} {}\n")
     }
@@ -112,6 +117,16 @@ class NullMarkedProcessorCompilationSpec extends Specification {
 
         expect:
         compilation.generatedFile(StandardLocation.CLASS_OUTPUT, 'com/example/package-info.class').present
+    }
+
+    def 'generates a package-info that compiles at source 8 with the JDK 8 Generated annotation'() {
+        when:
+        def compilation = compiler().withOptions('--release', '8').compile(type('com.example', 'Foo'))
+
+        then:
+        assertThat(compilation).succeeded()
+        assertThat(compilation).generatedSourceFile('com.example.package-info')
+                .contentsAsUtf8String().isEqualTo(EXPECTED_CONTENT_JDK8)
     }
 
     def 'never claims the annotations it matches'() {
